@@ -1,0 +1,60 @@
+{
+  "name": "@fimbul-works/barcode-scanner",
+  "version": "0.1.0",
+  "description": "Lightweight TypeScript library for detecting barcode scanner input in web applications by monitoring rapid keyboard event patterns",
+  "type": "module",
+  "license": "MIT",
+  "author": "FimbulWorks <contact@fimbul.works>",
+  "homepage": "https://github.com/fimbul-works/barcode-scanner#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fimbul-works/barcode-scanner.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fimbul-works/barcode-scanner/issues"
+  },
+  "keywords": [
+    "barcode",
+    "barcode-scanner",
+    "scanner",
+    "keyboard-wedge",
+    "typescript",
+    "input-device"
+  ],
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "API.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "rm -rf dist && pnpm build:esm && pnpm build:cjs",
+    "build:esm": "tsc -p tsconfig.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json && echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
+    "format": "npx biome format --write src",
+    "test": "vitest",
+    "apidoc:generate": "tsdoc --src=src/* --types --dest=API.md --noemoji",
+    "apidoc:header": "node scripts/add-api-header.js",
+    "apidoc": "npm run apidoc:generate && npm run apidoc:header",
+    "prepublishOnly": "npm run apidoc && npm run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.8",
+    "@types/node": "^24.10.1",
+    "jsdom": "^27.2.0",
+    "tsdoc-markdown": "^1.4.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
+  }
+}
