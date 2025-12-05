@@ -209,7 +209,7 @@ describe("BarcodeDetector", () => {
 
       const unsubscribe = detector.onScan(vi.fn());
 
-      expect(addEventListenerSpy).toHaveBeenCalledWith("keydown", expect.any(Function), true);
+      expect(addEventListenerSpy).toHaveBeenCalledWith("keydown", expect.any(Function));
 
       addEventListenerSpy.mockRestore();
       unsubscribe();
@@ -221,7 +221,7 @@ describe("BarcodeDetector", () => {
       const unsubscribe = detector.onScan(vi.fn());
       unsubscribe(); // Remove the only listener
 
-      expect(removeEventListenerSpy).toHaveBeenCalledWith("keydown", expect.any(Function), true);
+      expect(removeEventListenerSpy).toHaveBeenCalledWith("keydown", expect.any(Function));
 
       removeEventListenerSpy.mockRestore();
     });

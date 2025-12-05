@@ -164,14 +164,14 @@ export class BarcodeDetector {
   private attachGlobalListener(): void {
     if (this.isAttached) return;
 
-    document.addEventListener("keydown", this.handleKeyDown, true);
+    document.addEventListener("keydown", this.handleKeyDown);
     this.isAttached = true;
   }
 
   private removeGlobalListener(): void {
     if (!this.isAttached) return;
 
-    document.removeEventListener("keydown", this.handleKeyDown, true);
+    document.removeEventListener("keydown", this.handleKeyDown);
     this.isAttached = false;
   }
 
@@ -233,6 +233,8 @@ export class BarcodeDetector {
   }
 
   private finalizeScan(): void {
+    console.trace("finalizing scan", this.buffer.join(""));
+
     if (this.timeoutId !== null) {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;

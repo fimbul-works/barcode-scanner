@@ -17,9 +17,6 @@ importers:
       jsdom:
         specifier: ^27.2.0
         version: 27.2.0
-      tsdoc-markdown:
-        specifier: ^1.4.1
-        version: 1.4.1(typescript@5.9.3)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -642,12 +639,6 @@ packages:
   tr46@6.0.0:
     resolution: {integrity: sha512-bLVMLPtstlZ4iMQHpFHTR7GAGj2jxi8Dg0s2h2MafAE4uSWF98FC/3MomU51iQAMf8/qDUbKWf5GxuvvVcXEhw==}
     engines: {node: '>=20'}
-
-  tsdoc-markdown@1.4.1:
-    resolution: {integrity: sha512-N+yt68b/L22zVr1T4yyRjG0OihgfExkDlNTPJyhFa7yh/27h4y8qNzKqSzloLjelQn9R5laDeTY6iwMpURHnLw==}
-    hasBin: true
-    peerDependencies:
-      typescript: ^5
 
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
@@ -1285,10 +1276,6 @@ snapshots:
   tr46@6.0.0:
     dependencies:
       punycode: 2.3.1
-
-  tsdoc-markdown@1.4.1(typescript@5.9.3):
-    dependencies:
-      typescript: 5.9.3
 
   typescript@5.9.3: {}
 
