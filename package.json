@@ -1,6 +1,6 @@
 {
   "name": "@fimbul-works/barcode-scanner",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Lightweight TypeScript library for detecting barcode scanner input in web applications by monitoring rapid keyboard event patterns",
   "type": "module",
   "license": "MIT",

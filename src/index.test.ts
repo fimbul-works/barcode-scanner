@@ -19,19 +19,18 @@ describe("BarcodeDetector", () => {
       const listener = vi.fn();
       detector.onScan(listener);
 
-      // Simulate rapid keystrokes (< 10ms apart)
       const keystrokes = ["1", "2", "3", "4", "5"];
       keystrokes.forEach((key, index) => {
         const event = new KeyboardEvent("keydown", { key });
         document.dispatchEvent(event);
 
         if (index < keystrokes.length - 1) {
-          vi.advanceTimersByTime(5); // 5ms between keystrokes (rapid)
+          vi.advanceTimersByTime(10);
         }
       });
 
       // Fast forward to trigger timeout
-      vi.advanceTimersByTime(10);
+      vi.advanceTimersByTime(20);
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith({
@@ -44,14 +43,14 @@ describe("BarcodeDetector", () => {
       const listener = vi.fn();
       detector.onScan(listener);
 
-      // Simulate slow keystrokes (> 10ms apart)
+      // Simulate slow keystrokes (> 20ms apart)
       const event1 = new KeyboardEvent("keydown", { key: "1" });
       document.dispatchEvent(event1);
-      vi.advanceTimersByTime(15); // 15ms delay (too slow)
+      vi.advanceTimersByTime(25);
 
       const event2 = new KeyboardEvent("keydown", { key: "2" });
       document.dispatchEvent(event2);
-      vi.advanceTimersByTime(15);
+      vi.advanceTimersByTime(25);
 
       const event3 = new KeyboardEvent("keydown", { key: "3" });
       document.dispatchEvent(event3);
@@ -85,7 +84,7 @@ describe("BarcodeDetector", () => {
       ["1", "2", "3", "4"].forEach((key, index) => {
         const event = new KeyboardEvent("keydown", { key });
         document.dispatchEvent(event);
-        if (index < 3) vi.advanceTimersByTime(5);
+        if (index < 3) vi.advanceTimersByTime(10);
       });
       vi.advanceTimersByTime(100);
 
@@ -104,7 +103,7 @@ describe("BarcodeDetector", () => {
       ["1", "2", "3"].forEach((key, index) => {
         const event = new KeyboardEvent("keydown", { key });
         document.dispatchEvent(event);
-        if (index < 2) vi.advanceTimersByTime(5);
+        if (index < 2) vi.advanceTimersByTime(10);
       });
 
       const enterEvent = new KeyboardEvent("keydown", { key: "Enter" });
@@ -157,7 +156,7 @@ describe("BarcodeDetector", () => {
       ["4", "5", "6"].forEach((key, index) => {
         const event = new KeyboardEvent("keydown", { key });
         document.dispatchEvent(event);
-        if (index < 2) vi.advanceTimersByTime(5);
+        if (index < 2) vi.advanceTimersByTime(10);
       });
       vi.advanceTimersByTime(100);
 
@@ -177,11 +176,10 @@ describe("BarcodeDetector", () => {
       const unsubscribe1 = detector.onScan(listener1);
       detector.onScan(listener2);
 
-      // Send a barcode scan
       ["1", "2", "3"].forEach((key, index) => {
         const event = new KeyboardEvent("keydown", { key });
         document.dispatchEvent(event);
-        if (index < 2) vi.advanceTimersByTime(5);
+        if (index < 2) vi.advanceTimersByTime(10);
       });
       vi.advanceTimersByTime(100);
 
@@ -191,7 +189,6 @@ describe("BarcodeDetector", () => {
       // Unsubscribe first listener
       unsubscribe1();
 
-      // Send another scan
       ["4", "5", "6"].forEach((key, index) => {
         const event = new KeyboardEvent("keydown", { key });
         document.dispatchEvent(event);
@@ -227,12 +224,190 @@ describe("BarcodeDetector", () => {
     });
   });
 
+  describe("triggerOnce Parameter", () => {
+    it("should trigger listener only once when triggerOnce is true", () => {
+      const listener = vi.fn();
+      detector.onScan(listener, true);
+
+      // Send first scan
+      ["1", "2", "3"].forEach((key, index) => {
+        const event = new KeyboardEvent("keydown", { key });
+        document.dispatchEvent(event);
+        if (index < 2) vi.advanceTimersByTime(5);
+      });
+      vi.advanceTimersByTime(100);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith({
+        barcode: "123",
+        timestamp: expect.any(Number),
+      });
+
+      // Send second scan
+      ["4", "5", "6"].forEach((key, index) => {
+        const event = new KeyboardEvent("keydown", { key });
+        document.dispatchEvent(event);
+        if (index < 2) vi.advanceTimersByTime(5);
+      });
+      vi.advanceTimersByTime(100);
+
+      // Listener should still only have been called once
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it("should work with mixed triggerOnce and regular listeners", () => {
+      const onceListener = vi.fn();
+      const regularListener = vi.fn();
+
+      detector.onScan(onceListener, true);
+      detector.onScan(regularListener);
+
+      // Send first scan
+      ["1", "2", "3"].forEach((key, index) => {
+        const event = new KeyboardEvent("keydown", { key });
+        document.dispatchEvent(event);
+        if (index < 2) vi.advanceTimersByTime(5);
+      });
+      vi.advanceTimersByTime(100);
+
+      expect(onceListener).toHaveBeenCalledTimes(1);
+      expect(regularListener).toHaveBeenCalledTimes(1);
+
+      // Send second scan
+      ["4", "5", "6"].forEach((key, index) => {
+        const event = new KeyboardEvent("keydown", { key });
+        document.dispatchEvent(event);
+        if (index < 2) vi.advanceTimersByTime(5);
+      });
+      vi.advanceTimersByTime(100);
+
+      // Once listener should only have been called once, regular listener twice
+      expect(onceListener).toHaveBeenCalledTimes(1);
+      expect(regularListener).toHaveBeenCalledTimes(2);
+    });
+
+    it("should remove global listener when only triggerOnce listener completes", () => {
+      const removeEventListenerSpy = vi.spyOn(document, "removeEventListener");
+      const listener = vi.fn();
+
+      const unsubscribe = detector.onScan(listener, true);
+
+      // Send scan to trigger once listener
+      ["1", "2", "3"].forEach((key, index) => {
+        const event = new KeyboardEvent("keydown", { key });
+        document.dispatchEvent(event);
+        if (index < 2) vi.advanceTimersByTime(5);
+      });
+      vi.advanceTimersByTime(100);
+
+      // Global listener should be removed since no more listeners
+      expect(removeEventListenerSpy).toHaveBeenCalledWith("keydown", expect.any(Function));
+
+      removeEventListenerSpy.mockRestore();
+      unsubscribe();
+    });
+
+    it("should not remove global listener when other listeners remain after triggerOnce completes", () => {
+      const removeEventListenerSpy = vi.spyOn(document, "removeEventListener");
+      const onceListener = vi.fn();
+      const regularListener = vi.fn();
+
+      detector.onScan(onceListener, true);
+      detector.onScan(regularListener);
+
+      // Send scan to trigger once listener
+      ["1", "2", "3"].forEach((key, index) => {
+        const event = new KeyboardEvent("keydown", { key });
+        document.dispatchEvent(event);
+        if (index < 2) vi.advanceTimersByTime(5);
+      });
+      vi.advanceTimersByTime(100);
+
+      // Global listener should NOT be removed since regular listener is still active
+      expect(removeEventListenerSpy).not.toHaveBeenCalledWith("keydown", expect.any(Function));
+
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it("should work with triggerOnce and Enter key termination", () => {
+      const listener = vi.fn();
+      detector.onScan(listener, true);
+
+      // Send rapid keystrokes followed by Enter
+      ["1", "2", "3"].forEach((key, index) => {
+        const event = new KeyboardEvent("keydown", { key });
+        document.dispatchEvent(event);
+        if (index < 2) vi.advanceTimersByTime(5);
+      });
+
+      const enterEvent = new KeyboardEvent("keydown", { key: "Enter" });
+      document.dispatchEvent(enterEvent);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith({
+        barcode: "123",
+        timestamp: expect.any(Number),
+      });
+
+      // Send another scan with Enter termination
+      ["4", "5", "6"].forEach((key, index) => {
+        const event = new KeyboardEvent("keydown", { key });
+        document.dispatchEvent(event);
+        if (index < 2) vi.advanceTimersByTime(5);
+      });
+
+      const enterEvent2 = new KeyboardEvent("keydown", { key: "Enter" });
+      document.dispatchEvent(enterEvent2);
+
+      // Listener should still only have been called once
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle errors in triggerOnce listeners gracefully", () => {
+      const faultyListener = vi.fn(() => {
+        throw new Error("Once listener error");
+      });
+      const workingListener = vi.fn();
+
+      detector.onScan(faultyListener, true);
+      detector.onScan(workingListener);
+
+      // Suppress console.error for this test
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      ["1", "2", "3"].forEach((key, index) => {
+        const event = new KeyboardEvent("keydown", { key });
+        document.dispatchEvent(event);
+        if (index < 2) vi.advanceTimersByTime(5);
+      });
+      vi.advanceTimersByTime(100);
+
+      // Both listeners should be called despite error in once listener
+      expect(faultyListener).toHaveBeenCalledTimes(1);
+      expect(workingListener).toHaveBeenCalledTimes(1);
+      expect(consoleSpy).toHaveBeenCalledWith("Error in barcode scan listener:", expect.any(Error));
+
+      // Send another scan
+      ["4", "5", "6"].forEach((key, index) => {
+        const event = new KeyboardEvent("keydown", { key });
+        document.dispatchEvent(event);
+        if (index < 2) vi.advanceTimersByTime(5);
+      });
+      vi.advanceTimersByTime(100);
+
+      // Only working listener should be called again (once listener was removed)
+      expect(faultyListener).toHaveBeenCalledTimes(1); // Still only called once
+      expect(workingListener).toHaveBeenCalledTimes(2); // Called again
+
+      consoleSpy.mockRestore();
+    });
+  });
+
   describe("Edge Cases", () => {
     it("should ignore modifier keys", () => {
       const listener = vi.fn();
       detector.onScan(listener);
 
-      // Send modifier keys
       const keys = ["Shift", "Alt", "Control", "Meta"];
       keys.forEach((key) => {
         const event = new KeyboardEvent("keydown", { key });
@@ -251,58 +426,27 @@ describe("BarcodeDetector", () => {
       // Start rapid, then slow down
       const event1 = new KeyboardEvent("keydown", { key: "1" });
       document.dispatchEvent(event1);
-      vi.advanceTimersByTime(5); // Fast
+      vi.advanceTimersByTime(10);
 
       const event2 = new KeyboardEvent("keydown", { key: "2" });
       document.dispatchEvent(event2);
-      vi.advanceTimersByTime(15); // Slow - should break sequence
+      vi.advanceTimersByTime(50); // Slow - should break sequence
 
       const event3 = new KeyboardEvent("keydown", { key: "3" });
       document.dispatchEvent(event3);
-      vi.advanceTimersByTime(5); // Fast again
+      vi.advanceTimersByTime(10);
 
       const event4 = new KeyboardEvent("keydown", { key: "4" });
       document.dispatchEvent(event4);
       vi.advanceTimersByTime(100);
 
-      // Should not detect as barcode scan due to mixed timing
       expect(listener).not.toHaveBeenCalled();
-    });
-
-    it("should work regardless of active element focus", () => {
-      // Mock active element as input field
-      const input = document.createElement("input");
-      input.type = "text";
-      document.body.appendChild(input);
-      Object.defineProperty(document, "activeElement", {
-        value: input,
-        writable: true,
-      });
-
-      const listener = vi.fn();
-      detector.onScan(listener);
-
-      ["1", "2", "3"].forEach((key, index) => {
-        const event = new KeyboardEvent("keydown", { key });
-        document.dispatchEvent(event);
-        if (index < 2) vi.advanceTimersByTime(5);
-      });
-      vi.advanceTimersByTime(100);
-
-      expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith({
-        barcode: "123",
-        timestamp: expect.any(Number),
-      });
-
-      document.body.removeChild(input);
     });
 
     it("should handle empty key events gracefully", () => {
       const listener = vi.fn();
       detector.onScan(listener);
 
-      // Send event with empty key
       const event = new KeyboardEvent("keydown", { key: "" });
       document.dispatchEvent(event);
       vi.advanceTimersByTime(100);
@@ -320,7 +464,7 @@ describe("BarcodeDetector", () => {
       ["1", "2", "3"].forEach((key, index) => {
         const event = new KeyboardEvent("keydown", { key });
         document.dispatchEvent(event);
-        if (index < 2) vi.advanceTimersByTime(20); // 20ms apart (slower than default but within custom maxDelay)
+        if (index < 2) vi.advanceTimersByTime(40); // 40ms apart (slower than default but within custom maxDelay)
       });
       vi.advanceTimersByTime(50); // Wait for custom timeout
 

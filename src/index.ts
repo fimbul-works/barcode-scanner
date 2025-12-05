@@ -2,7 +2,7 @@
  * Options passed to the BarcodeDetector class constructor.
  */
 export interface BarcodeDetectorOptions {
-  /** Maximum milliseconds between keystrokes to consider them part of the same scan (default: 10) */
+  /** Maximum milliseconds between keystrokes to consider them part of the same scan (default: 20) */
   maxDelay?: number;
   /** Key that signals the end of a barcode scan (default: 'Enter') */
   terminationKey?: string;
@@ -56,49 +56,6 @@ export type UnsubscribeFn = () => void;
  * keydown events in rapid succession (typically < 10ms between characters).
  * This detector identifies those patterns and emits scan events when valid
  * barcodes are detected.
- *
- * @example
- * ```typescript
- * const detector = new BarcodeDetector({
- *   maxDelay: 10,
- *   minBarcodeLength: 8
- * });
- *
- * const unsubscribe = detector.onScan((event) => {
- *   console.log('Detected barcode:', event.barcode);
- *   updateInventory(event.barcode);
- * });
- *
- * // Later, cleanup
- * unsubscribe();
- * // or
- * detector.destroy();
- * ```
- *
- * @example Debug mode for troubleshooting
- * ```typescript
- * const detector = new BarcodeDetector({
- *   enableDebugEvents: true
- * });
- *
- * detector.onScan((event) => {
- *   console.log('Barcode:', event.barcode);
- *   console.log('Timing data:', event.keystrokes);
- * });
- * ```
- *
- * @remarks
- * The detector automatically manages its event listeners, attaching them when
- * the first subscriber is added and removing them when the last subscriber
- * is removed. This ensures minimal performance impact when not in use.
- *
- * Key detection logic:
- * - Characters are buffered as they arrive
- * - If delay between keystrokes exceeds maxDelay, buffer is cleared
- * - When terminationKey is pressed or timeout occurs, buffer is validated
- * - If buffer length meets minBarcodeLength, a scan event is emitted
- *
- * @public
  */
 export class BarcodeDetector {
   private options: Required<BarcodeDetectorOptions>;
@@ -111,13 +68,14 @@ export class BarcodeDetector {
 
   constructor(options: BarcodeDetectorOptions = {}) {
     const {
-      maxDelay = 10,
+      maxDelay = 20,
       terminationKey = "Enter",
       minBarcodeLength = 3,
       maxBarcodeLength = 100,
       enableDebugEvents = false,
       preventDefault = false,
     } = options;
+
     this.options = {
       maxDelay,
       terminationKey,
@@ -129,31 +87,43 @@ export class BarcodeDetector {
   }
 
   /**
-   * Subscribe to scan events
+   * Subscribe to scan events.
    * @param listener Function to call when a barcode scan is detected
+   * @param triggerOnce Remove the listener after triggering
    * @returns Unsubscribe function
    */
-  onScan(listener: ScanListener): UnsubscribeFn {
-    this.listeners.add(listener);
+  onScan(listener: ScanListener, triggerOnce: boolean = false): UnsubscribeFn {
+    // Remove global event listener when no listeners left
+    const cleanupIfNeeded = () => {
+      if (this.isAttached && this.listeners.size === 0) {
+        this.removeGlobalListener();
+      }
+    };
 
-    // Attach global listener if this is the first listener
-    if (this.listeners.size === 1 && !this.isAttached) {
+    // Wrap once triggering function
+    const fn = triggerOnce
+      ? (event: ScanEvent) => {
+          this.listeners.delete(fn);
+          listener(event);
+          cleanupIfNeeded();
+        }
+      : listener;
+
+    this.listeners.add(fn);
+
+    // Attach global event listener when first listener is added
+    if (!this.isAttached && this.listeners.size === 1) {
       this.attachGlobalListener();
     }
 
-    // Return unsubscribe function
     return () => {
-      this.listeners.delete(listener);
-
-      // Remove global listener if no more listeners
-      if (this.listeners.size === 0 && this.isAttached) {
-        this.removeGlobalListener();
-      }
+      this.listeners.delete(fn);
+      cleanupIfNeeded();
     };
   }
 
   /**
-   * Destroy and cleanup all resources
+   * Destroy and cleanup all resources.
    */
   destroy(): void {
     this.listeners.clear();
@@ -185,7 +155,6 @@ export class BarcodeDetector {
     const delay = this.lastKeystrokeTime ? now - this.lastKeystrokeTime : 0;
     this.lastKeystrokeTime = now;
 
-    // Handle termination key
     if (event.key === this.options.terminationKey) {
       if (this.buffer.length >= this.options.minBarcodeLength) {
         this.finalizeScan();
@@ -195,17 +164,13 @@ export class BarcodeDetector {
       return;
     }
 
-    // Prevent scans that may get stuck producing too long inputs
+    this.buffer.push(event.key);
+
     if (this.buffer.length >= this.options.maxBarcodeLength) {
       this.clearBuffer();
       return;
     }
 
-    // Add character to buffer
-    const char = event.key;
-    this.buffer.push(char);
-
-    // Add debug data if enabled
     if (this.options.enableDebugEvents) {
       this.debugData.push({
         key: event.key,
@@ -214,7 +179,6 @@ export class BarcodeDetector {
       });
     }
 
-    // Reset timeout
     this.resetTimeout();
   };
 
@@ -233,8 +197,6 @@ export class BarcodeDetector {
   }
 
   private finalizeScan(): void {
-    console.trace("finalizing scan", this.buffer.join(""));
-
     if (this.timeoutId !== null) {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
@@ -248,12 +210,10 @@ export class BarcodeDetector {
       timestamp,
     };
 
-    // Add debug data if enabled
     if (this.options.enableDebugEvents) {
       scanEvent.keystrokes = [...this.debugData];
     }
 
-    // Trigger all listeners
     this.listeners.forEach((listener) => {
       try {
         listener(scanEvent);
